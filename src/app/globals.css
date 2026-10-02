@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/*
+ * Gallery shell tokens. Individual showcase pieces are free to define
+ * their own palettes — these only style the gallery chrome.
+ */
+:root {
+  --background: #07070a;
+  --foreground: #ededf0;
+  --muted: #8a8a96;
+  --surface: #101016;
+  --border: #1f1f29;
+  --accent: #b9a6ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-instrument-serif);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--background);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
