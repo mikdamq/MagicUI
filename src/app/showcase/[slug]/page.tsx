@@ -30,7 +30,7 @@ export default async function ShowcasePage({
     <>
       <Link
         href="/"
-        className="fixed top-4 left-4 z-[100] rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 font-mono text-xs text-white/80 backdrop-blur-md transition-colors hover:text-white"
+        className="fixed bottom-4 left-4 z-[100] rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 font-mono text-xs text-white/80 backdrop-blur-md transition-colors hover:text-white"
       >
         ← Gallery
       </Link>

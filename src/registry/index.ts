@@ -38,7 +38,18 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
  *   load: () => import("@/components/heroes/aurora-hero"),
  * },
  */
-export const registry: ShowcaseItem[] = [];
+export const registry: ShowcaseItem[] = [
+  {
+    slug: "buzina-hero",
+    title: "Buzina",
+    description:
+      "Mindful-productivity hero with a living WebGL orb and interactive cards that fly out of it.",
+    category: "hero",
+    tech: ["three", "motion", "gsap"],
+    createdAt: "2026-10-02",
+    load: () => import("@/components/heroes/buzina-hero"),
+  },
+];
 
 export function getItem(slug: string) {
   return registry.find((item) => item.slug === slug);
