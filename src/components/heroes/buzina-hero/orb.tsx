@@ -26,11 +26,11 @@ export function Orb({
   const sphere = size * 0.8;
   const box = useRef<HTMLDivElement>(null);
 
-  // Magnetic pull: the whole orb (halo, orbit, mark) drifts toward the cursor.
+  // Gentle, overdamped drift toward the cursor.
   const tx = useMotionValue(0);
   const ty = useMotionValue(0);
-  const x = useSpring(tx, { stiffness: 110, damping: 9, mass: 0.8 });
-  const y = useSpring(ty, { stiffness: 110, damping: 9, mass: 0.8 });
+  const x = useSpring(tx, { stiffness: 40, damping: 20 });
+  const y = useSpring(ty, { stiffness: 40, damping: 20 });
 
   useEffect(() => {
     if (!webgl) return;
@@ -39,9 +39,9 @@ export function Orb({
       if (!r) return;
       const dx = e.clientX - (r.left + r.width / 2);
       const dy = e.clientY - (r.top + r.height / 2);
-      const k = 0.07;
-      tx.set(Math.max(-34, Math.min(34, dx * k)));
-      ty.set(Math.max(-26, Math.min(26, dy * k)));
+      const k = 0.025;
+      tx.set(Math.max(-12, Math.min(12, dx * k)));
+      ty.set(Math.max(-9, Math.min(9, dy * k)));
     };
     const onLeave = () => {
       tx.set(0);

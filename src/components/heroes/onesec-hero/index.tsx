@@ -10,7 +10,7 @@ import { TOKEN_ORDER, type TokenId } from "./tokens";
 
 const CoinsCanvas = dynamic(() => import("./coins-canvas"), { ssr: false });
 
-const font = Lexend({ subsets: ["latin"], weight: ["300", "400", "500"] });
+const font = Lexend({ subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const NAV = ["Bridge", "Developers", "deExplorer", "Learn", "Analytics"];
@@ -83,7 +83,8 @@ export default function OneSecHero() {
       const { clientWidth: w, clientHeight: h } = el;
       const cardH = box.offsetHeight; // unaffected by the scale transform
       if (!w || !h || !cardH) return;
-      setScale(Math.min(1, (h - 24) / cardH, (w * 0.5) / CARD_W));
+      // Capped below 1: the card reads best a touch smaller than the 1:1 design.
+      setScale(Math.min(0.84, (h - 32) / cardH, (w * 0.42) / CARD_W));
     };
     const ro = new ResizeObserver(fit);
     ro.observe(el);
@@ -125,9 +126,9 @@ export default function OneSecHero() {
             <a
               href="#"
               aria-label="1SEC home"
-              className="grid size-[52px] place-items-start overflow-hidden rounded-[14px] bg-black pt-[13px] pl-[10px] md:size-[60px] md:pt-[15px] md:pl-[11px]"
+              className="grid size-[52px] place-items-center rounded-[14px] bg-black transition-transform hover:scale-105 md:size-[60px]"
             >
-              <span className="text-[24px] leading-none font-medium tracking-[-0.03em] whitespace-nowrap text-white md:text-[27px]">
+              <span className="text-[16px] leading-none font-semibold tracking-[-0.02em] whitespace-nowrap text-white md:text-[18px]">
                 1SEC
               </span>
             </a>

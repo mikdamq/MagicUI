@@ -53,23 +53,16 @@ float snoise(vec3 v){
 
 const vertexShader = /* glsl */ `
 uniform float uTime;
-uniform float uEnergy;
 uniform vec2 uPull;
 uniform float uPullAmt;
-uniform float uWobble;
 varying vec3 vNormal;
 varying vec3 vView;
 varying vec3 vPos;
 ${NOISE}
 void main(){
+  // A perfect sphere: all motion lives in the colour field, not the surface.
   vec3 p = position;
   vec3 nView = normalize(normalMatrix * normal);
-  // Liquid bulge reaching toward the cursor.
-  vec3 pullDir = normalize(vec3(uPull, 0.85));
-  float bulge = pow(max(dot(nView, pullDir), 0.0), 3.0) * uPullAmt * 0.11;
-  float n = snoise(normal * 1.3 + vec3(uTime * 0.22));
-  float wobble = snoise(normal * 1.2 + vec3(uTime * 1.4)) * uWobble;
-  p += normal * (n * (0.012 + uEnergy * 0.012) + bulge + wobble * 0.045);
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   vNormal = nView;
   vView = normalize(-mv.xyz);
@@ -92,9 +85,9 @@ void main(){
   float fres = 1.0 - facing;
 
   // Gradient axis swings toward the cursor; colours swirl after it.
-  vec2 dir = normalize(vec2(-1.0, 1.05) + uPull * 1.3);
+  vec2 dir = normalize(vec2(-1.0, 1.05) + uPull * 0.55);
   float g = dot(n.xy, dir) * 0.55 + 0.5;
-  vec3 swirl = vec3(uPull * 0.9, 0.0);
+  vec3 swirl = vec3(uPull * 0.35, 0.0);
   float flow = snoise(vPos * 1.6 + swirl + vec3(0.0, uTime * 0.16, uTime * 0.11));
   float flow2 = snoise(vPos * 3.2 - swirl - vec3(uTime * 0.09));
   g = clamp(g + flow * 0.14 + flow2 * 0.05, 0.0, 1.0);
@@ -110,7 +103,7 @@ void main(){
   // Milky core and a glossy highlight that tracks the cursor.
   col = mix(col, vec3(0.95, 0.89, 1.0), pow(facing, 4.0) * 0.22);
   vec3 L = normalize(vec3(-0.25 + uPull.x * 0.9, 0.35 + uPull.y * 0.8, 1.0));
-  col += pow(max(dot(n, L), 0.0), 10.0) * (0.14 + uPullAmt * 0.12);
+  col += pow(max(dot(n, L), 0.0), 12.0) * (0.14 + uPullAmt * 0.05);
 
   // Bright, hazy rim that dissolves into the white page.
   col = mix(col, vec3(0.97, 0.94, 1.0), smoothstep(0.5, 1.0, fres) * 0.6);
@@ -128,15 +121,13 @@ function Sphere({ pointer }: { pointer: React.RefObject<Pointer> }) {
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uEnergy: { value: 0 },
       uPull: { value: new THREE.Vector2() },
       uPullAmt: { value: 0 },
-      uWobble: { value: 0 },
     }),
     [],
   );
-  // Spring state for the jelly lag between cursor and surface.
-  const spring = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
+  // Smoothed cursor position relative to the sphere.
+  const spring = useRef({ x: 0, y: 0 });
 
   useFrame((state, delta) => {
     const u = material.current?.uniforms;
@@ -161,28 +152,23 @@ function Sphere({ pointer }: { pointer: React.RefObject<Pointer> }) {
       amt = Math.max(0.35, 1.2 - dist * 0.2);
     }
 
-    // Under-damped spring: overshoots, wobbles, then settles.
+    // Smooth, calm follow (no overshoot).
     const sp = spring.current;
-    sp.vx += (tx - sp.x) * 90 * dt;
-    sp.vy += (ty - sp.y) * 90 * dt;
-    sp.vx *= Math.pow(0.02, dt);
-    sp.vy *= Math.pow(0.02, dt);
-    sp.x += sp.vx * dt;
-    sp.y += sp.vy * dt;
+    const follow = 1 - Math.exp(-dt * 2.2);
+    sp.x += (tx - sp.x) * follow;
+    sp.y += (ty - sp.y) * follow;
 
     (u.uPull.value as THREE.Vector2).set(sp.x, sp.y);
     u.uPullAmt.value += (amt - u.uPullAmt.value) * Math.min(1, dt * 4);
-    const speed = Math.hypot(sp.vx, sp.vy);
-    u.uWobble.value += (Math.min(speed * 0.12, 0.5) - u.uWobble.value) * Math.min(1, dt * 6);
-    u.uEnergy.value += (Math.min(speed * 0.3, 1) - u.uEnergy.value) * Math.min(1, dt * 3);
     u.uTime.value = state.clock.elapsedTime;
 
     if (mesh.current) {
       // Magnetic drift and tilt toward the cursor.
-      mesh.current.position.x = sp.x * 0.07;
-      mesh.current.position.y = sp.y * 0.07;
-      mesh.current.rotation.y += dt * 0.12 + sp.vx * dt * 0.4;
-      mesh.current.rotation.x = -sp.y * 0.35;
+      // Barely-there drift toward the cursor; the colour field slowly turns.
+      mesh.current.position.x = sp.x * 0.025;
+      mesh.current.position.y = sp.y * 0.025;
+      mesh.current.rotation.y += dt * 0.1;
+      mesh.current.rotation.x = -sp.y * 0.12;
       const s = 1 + Math.sin(state.clock.elapsedTime * 0.9) * 0.012;
       mesh.current.scale.setScalar(s);
     }
