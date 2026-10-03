@@ -40,6 +40,16 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
  */
 export const registry: ShowcaseItem[] = [
   {
+    slug: "github-discussions-hero",
+    title: "GitHub Discussions",
+    description:
+      "Community hero with a living constellation of avatars, reactions and replies orbiting the headline.",
+    category: "hero",
+    tech: ["motion", "css"],
+    createdAt: "2026-10-05",
+    load: () => import("@/components/heroes/github-discussions-hero"),
+  },
+  {
     slug: "onesec-hero",
     title: "OneSec",
     description:
