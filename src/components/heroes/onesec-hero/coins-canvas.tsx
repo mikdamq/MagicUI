@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { EMBOSS_SVG } from "./logos";
-import { buildTrack, LAP } from "./track";
+import { COIN_ANGLES, ringPoint } from "./track";
 import type { TokenId } from "./tokens";
 
 /* ------------------------------------------------------------------ */
@@ -105,12 +105,12 @@ export type CoinSpec = {
   id: TokenId;
   face: string;
   edge: string;
-  /** Static position (mobile), or offset from its stack's point on the track. */
+  /** Static world position (mobile). */
   pos: [number, number, number];
   rot: [number, number, number];
   scale: number;
-  /** Which stack on the route this coin rides with (desktop). */
-  stack?: 0 | 1;
+  /** Desktop: fixed spot on the dashed ring (degrees). */
+  angle?: number;
 };
 
 const BRAND: Record<TokenId, { face: string; edge: string }> = {
@@ -121,43 +121,39 @@ const BRAND: Record<TokenId, { face: string; edge: string }> = {
   POL: { face: "#7b3fe4", edge: "#6230bf" },
 };
 
-const coin = (
-  id: TokenId,
-  pos: CoinSpec["pos"],
-  rot: CoinSpec["rot"],
-  scale: number,
-  stack?: 0 | 1,
-): CoinSpec => ({ id, ...BRAND[id], pos, rot, scale, stack });
+const coin = (id: TokenId, rot: CoinSpec["rot"], angle: number): CoinSpec => ({
+  id,
+  ...BRAND[id],
+  pos: [0, 0, 0],
+  rot,
+  scale: 0.56,
+  angle,
+});
 
-/** Desktop: two stacks riding the route; positions are offsets from the stack point. */
+/** Desktop: five separate coins pinned along the right side of the dashed ring. */
 export const DESKTOP_COINS: CoinSpec[] = [
-  coin("ETH", [-0.37, 0.79, -0.8], [-0.3, -0.62, 0.32], 1.05, 0),
-  coin("ARB", [0, 0.16, 0.3], [-0.28, -0.5, 0.18], 1.05, 0),
-  coin("USDT", [0.36, -0.96, 0.9], [-1.18, -0.08, 0.06], 1.18, 0),
-  coin("USDC", [-0.515, -0.26, -1.0], [-0.26, -0.62, 0.08], 1.12, 1),
-  coin("POL", [0.515, 0.26, 0.9], [-0.3, -0.55, 0.12], 1.08, 1),
+  coin("ETH", [-0.25, -0.55, 0.2], COIN_ANGLES[0]),
+  coin("ARB", [-0.3, -0.5, 0.15], COIN_ANGLES[1]),
+  coin("USDT", [-0.55, -0.35, 0.06], COIN_ANGLES[2]),
+  coin("USDC", [-0.25, -0.6, 0.08], COIN_ANGLES[3]),
+  coin("POL", [-0.3, -0.5, 0.12], COIN_ANGLES[4]),
 ];
 
 export const MOBILE_COINS: CoinSpec[] = [
-  { ...DESKTOP_COINS[0], pos: [-1.55, 0.95, -0.6], scale: 0.8, stack: undefined },
-  { ...DESKTOP_COINS[1], pos: [-1.05, 0.55, 0.3], scale: 0.8, stack: undefined },
-  { ...DESKTOP_COINS[2], pos: [0.1, -1.05, 0], scale: 0.85, stack: undefined },
-  { ...DESKTOP_COINS[3], pos: [1.0, 0.75, -0.4], scale: 0.82, stack: undefined },
-  { ...DESKTOP_COINS[4], pos: [1.75, 0.3, 0.35], scale: 0.8, stack: undefined },
+  { ...DESKTOP_COINS[0], pos: [-2.1, 0.75, 0], scale: 0.62, angle: undefined },
+  { ...DESKTOP_COINS[1], pos: [-1.05, -0.35, 0], scale: 0.62, angle: undefined },
+  { ...DESKTOP_COINS[2], pos: [0, 0.75, 0], scale: 0.62, angle: undefined },
+  { ...DESKTOP_COINS[3], pos: [1.05, -0.35, 0], scale: 0.62, angle: undefined },
+  { ...DESKTOP_COINS[4], pos: [2.1, 0.75, 0], scale: 0.62, angle: undefined },
 ];
-
-/** Stacks riding the route are drawn a little smaller so the route reads. */
-const STACK_SCALE = 0.82;
 
 /** Camera: z = 12, fov 30 -> visible world height at the z = 0 plane. */
 const VIEW_H = 2 * 12 * Math.tan((15 * Math.PI) / 180);
 
 const TAU = Math.PI * 2;
 
-type Track = ReturnType<typeof buildTrack> & { width: number; height: number };
-
 type Shared = {
-  track: React.RefObject<Track | null>;
+  size: React.RefObject<{ width: number; height: number }>;
   body: THREE.BufferGeometry;
   rim: THREE.BufferGeometry;
   reeding: THREE.Texture;
@@ -243,36 +239,32 @@ function Coin({
     st.bounce = Math.max(0, st.bounce - dt * 1.6);
 
     if (outer.current) {
-      const float = animate ? Math.sin(t * 0.75 + index * 1.3) * 0.06 : 0;
-      // Glide along the route (desktop): stack point in px -> world units.
-      let ax = 0;
-      let ay = 0;
-      const track = shared.track.current;
-      if (spec.stack !== undefined && track) {
-        const travel = animate ? Math.max(0, t - 0.6) / LAP : 0;
-        const u = (track.starts[spec.stack] + travel) % 1;
-        const p = track.curve.getPointAt(u);
-        const ppu = track.height / VIEW_H;
-        ax = (p.x - track.width / 2) / ppu;
-        ay = -(p.y - track.height / 2) / ppu;
+      // Fixed spot: on the dashed ring (desktop) or its static position (mobile).
+      let x = spec.pos[0];
+      let y = spec.pos[1];
+      if (spec.angle !== undefined) {
+        const { width, height } = shared.size.current;
+        const pt = ringPoint(width, height, spec.angle);
+        const ppu = height / VIEW_H;
+        x = (pt.x - width / 2) / ppu;
+        y = -(pt.y - height / 2) / ppu;
       }
-      const k = spec.stack !== undefined ? STACK_SCALE : 1;
       outer.current.position.set(
-        ax + spec.pos[0] * k,
-        ay + spec.pos[1] * k + float + (1 - ease) * 1.6 + Math.sin(st.bounce * Math.PI) * 0.35,
+        x,
+        y + (1 - ease) * 1.2 + Math.sin(st.bounce * Math.PI) * 0.25,
         spec.pos[2],
       );
-      outer.current.scale.setScalar(spec.scale * k * Math.max(0.001, ease) * (1 + st.hover * 0.05));
+      outer.current.scale.setScalar(spec.scale * Math.max(0.001, ease) * (1 + st.hover * 0.05));
     }
 
+    // The only ambient motion: a small tilt toward the cursor.
     if (tilt.current) {
       const m = shared.mouse.current;
-      const wob = animate ? Math.sin(t * 0.5 + index) * 0.05 : 0;
-      const tx = spec.rot[0] - m.y * 0.28 + wob;
-      const ty = spec.rot[1] + m.x * 0.32;
+      const tx = spec.rot[0] - m.y * 0.16;
+      const ty = spec.rot[1] + m.x * 0.2;
       tilt.current.rotation.x += (tx - tilt.current.rotation.x) * Math.min(1, dt * 3);
       tilt.current.rotation.y += (ty - tilt.current.rotation.y) * Math.min(1, dt * 3);
-      tilt.current.rotation.z = spec.rot[2] + wob * 0.6;
+      tilt.current.rotation.z = spec.rot[2];
     }
 
     st.angle += st.vel * dt;
@@ -332,12 +324,12 @@ function Coins({
   mouse: React.RefObject<{ x: number; y: number }>;
 }) {
   const size = useThree((s) => s.size);
-  const track = useRef<Track | null>(null);
+  const sizeRef = useRef({ width: size.width, height: size.height });
   useEffect(() => {
-    track.current = { ...buildTrack(size.width, size.height), width: size.width, height: size.height };
+    sizeRef.current = { width: size.width, height: size.height };
   }, [size.width, size.height]);
   const shared = useMemo<Shared>(
-    () => ({ track, body: makeBody(), rim: makeRim(), reeding: makeReeding(), mouse }),
+    () => ({ size: sizeRef, body: makeBody(), rim: makeRim(), reeding: makeReeding(), mouse }),
     [mouse],
   );
   return (

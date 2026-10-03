@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowDot, SwapCard, WalletModal } from "./swap-card";
 import { TOKEN_ORDER, type TokenId } from "./tokens";
-import { trackPath } from "./track";
+import { ring } from "./track";
 
 const CoinsCanvas = dynamic(() => import("./coins-canvas"), { ssr: false });
 
@@ -115,7 +115,7 @@ export default function OneSecHero() {
       }}
     >
       <style>{`
-        @keyframes os-dash { to { stroke-dashoffset: -480; } }
+        @keyframes os-dash { to { stroke-dashoffset: -520; } }
         @keyframes os-pulse { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
       `}</style>
       <section ref={hero} className="relative flex min-h-svh flex-col md:h-svh md:min-h-[640px]">
@@ -131,27 +131,36 @@ export default function OneSecHero() {
             animate={{ opacity: 1 }}
             transition={{ duration: 1.2, delay: 0.5 }}
           >
-            <path
-              d={trackPath(heroSize.w, heroSize.h)}
-              fill="none"
-              stroke="#ff3b5f"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeDasharray="12 12"
-              style={reduce ? undefined : { animation: "os-dash 20s linear infinite" }}
-            />
-            {!reduce && (
-              <path
-                d={trackPath(heroSize.w, heroSize.h)}
-                pathLength={1000}
-                fill="none"
-                stroke="#ffd1dc"
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeDasharray="22 978"
-                style={{ animation: "os-pulse 7s linear infinite", filter: "drop-shadow(0 0 6px #ff3b5f)" }}
-              />
-            )}
+            {(() => {
+              const { cx, cy, r } = ring(heroSize.w, heroSize.h);
+              return (
+                <>
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill="none"
+                    stroke="#ec1c2a"
+                    strokeWidth={5}
+                    strokeDasharray="14 12"
+                    style={reduce ? undefined : { animation: "os-dash 20s linear infinite" }}
+                  />
+                  {!reduce && (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={r}
+                      pathLength={1000}
+                      fill="none"
+                      stroke="#ffd1dc"
+                      strokeWidth={5}
+                      strokeDasharray="20 980"
+                      style={{ animation: "os-pulse 7s linear infinite", filter: "drop-shadow(0 0 6px #ff3b5f)" }}
+                    />
+                  )}
+                </>
+              );
+            })()}
           </motion.svg>
         )}
 
