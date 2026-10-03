@@ -4,7 +4,7 @@
  */
 export function Airlines() {
   return (
-    <ul className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[#8d8b98] sm:gap-x-[70px]">
+    <ul className="flex flex-wrap items-center justify-center gap-x-10 px-7 sm:px-0 gap-y-4 text-[#8d8b98] sm:gap-x-[70px]">
       <li className="flex items-center gap-1.5 opacity-60 transition-opacity hover:opacity-100">
         <svg viewBox="0 0 20 20" className="size-[17px]" aria-hidden>
           <circle cx="10" cy="10" r="8.6" fill="none" stroke="currentColor" strokeWidth="1.4" />

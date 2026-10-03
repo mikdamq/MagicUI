@@ -305,7 +305,7 @@ export function SyncCard() {
       <div className="relative h-full overflow-hidden rounded-2xl bg-gradient-to-b from-[#e6f0fc] via-[#d8e8fa] to-[#c9def6]">
         <svg
           viewBox="-100 -100 200 200"
-          className="absolute top-1/2 left-1/2 w-[200px] -translate-x-1/2 -translate-y-[56%]"
+          className="absolute top-1/2 left-1/2 w-[168px] -translate-x-1/2 -translate-y-1/2"
           aria-hidden
         >
           {Array.from({ length: TICKS }, (_, i) => {
@@ -327,16 +327,16 @@ export function SyncCard() {
             );
           })}
         </svg>
-        <div className="absolute inset-x-0 top-1/2 flex -translate-y-[64%] flex-col items-center">
-          <p className="text-[36px] leading-none font-semibold tracking-[-0.04em] text-[#16213a] tabular-nums">
+        <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 flex-col items-center">
+          <p className="text-[30px] leading-none font-semibold tracking-[-0.04em] text-[#16213a] tabular-nums">
             {mins}:{secs}
           </p>
-          <p className="mt-1.5 text-center text-[11px] leading-tight text-[#5b6884]">
+          <p className="mt-1 text-center text-[10px] leading-tight text-[#5b6884]">
             Team sync,
             <br />
             elevate minds
           </p>
-          <div className="mt-3 flex items-center gap-3 text-[#4b5876]">
+          <div className="mt-2 flex items-center gap-2.5 text-[#4b5876]">
             <button
               type="button"
               aria-label={muted ? "Unmute" : "Mute"}

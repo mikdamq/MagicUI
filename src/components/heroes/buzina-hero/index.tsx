@@ -36,6 +36,8 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 
 /* Stage is laid out 1:1 against the 1440px design, then scaled per breakpoint. */
 const STAGE = { w: 1440, h: 550, orbX: 720, orbY: 246, orbBox: 459 };
+/** Height the stage must show; the lower glow may be cropped. */
+const STAGE_FIT_H = 480;
 
 type CardSpec = {
   id: string;
@@ -53,7 +55,7 @@ type CardSpec = {
 const CARDS: CardSpec[] = [
   { id: "wellness", Comp: WellnessCard, left: 108, top: 20, w: 363, rotate: 4, z: 10, depth: 14, fan: { x: -110, y: -30, rotate: 5 } },
   { id: "insights", Comp: InsightsCard, left: 151, top: 168, w: 285, rotate: -6, z: 20, depth: 26, fan: { x: -60, y: 70, rotate: -6 } },
-  { id: "sync", Comp: SyncCard, left: 1025, top: 238, w: 242, h: 207, rotate: 6, z: 10, depth: 22, fan: { x: 70, y: 80, rotate: 6 } },
+  { id: "sync", Comp: SyncCard, left: 1025, top: 262, w: 242, h: 207, rotate: 6, z: 10, depth: 22, fan: { x: 70, y: 80, rotate: 6 } },
   { id: "calendar", Comp: CalendarCard, left: 963, top: 23, w: 367, rotate: -4, z: 20, depth: 12, fan: { x: 110, y: -30, rotate: -5 } },
 ];
 
@@ -101,7 +103,7 @@ function Headline() {
   const lines = ["Boost team productivity", "with mindful moments"];
   let i = 0;
   return (
-    <h1 className="text-[40px] leading-[1.06] font-semibold tracking-[-0.055em] text-neutral-950 sm:text-[54px] lg:text-[68px]">
+    <h1 className="text-[40px] leading-[1.06] font-semibold tracking-[-0.055em] text-neutral-950 sm:text-[54px] md:text-[clamp(40px,min(4.7vw,8.5vh),68px)]">
       {lines.map((line) => (
         <span key={line} className="block">
           {line.split(" ").map((word) => {
@@ -134,7 +136,7 @@ function EmailForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="mx-auto mt-9 flex w-full max-w-[452px] flex-col gap-2.5 sm:flex-row sm:gap-3"
+      className="mx-auto mt-9 flex w-full max-w-[452px] md:mt-[clamp(20px,4vh,36px)] flex-col gap-2.5 sm:flex-row sm:gap-3"
     >
       <input
         type="email"
@@ -263,6 +265,21 @@ export default function BuzinaHero() {
   const root = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion() ?? false;
   const isMd = useIsMd();
+  const stageBox = useRef<HTMLDivElement>(null);
+  const [stageScale, setStageScale] = useState<number | null>(null);
+
+  // Fit the 1440-wide stage into whatever width and height is left on screen.
+  useEffect(() => {
+    const el = stageBox.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (!width || !height) return;
+      setStageScale(Math.min(1, width / STAGE.w, height / STAGE_FIT_H));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
@@ -289,7 +306,7 @@ export default function BuzinaHero() {
             scrollTrigger: {
               trigger: "[data-hero]",
               start: "top top",
-              end: "+=70%",
+              end: "+=35%",
               scrub: 0.8,
               pin: true,
             },
@@ -310,14 +327,14 @@ export default function BuzinaHero() {
     <div ref={root} className={cn(font.className, "min-h-screen bg-white")}>
       <section
         data-hero
-        className="relative overflow-hidden bg-white antialiased md:h-[1000px] md:max-h-none"
+        className="relative overflow-clip bg-white antialiased md:flex md:h-svh md:min-h-[620px] md:flex-col"
       >
         {/* Header */}
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="relative z-30 mx-auto flex h-[76px] max-w-[1264px] items-center justify-between px-4 sm:px-10"
+          className="relative z-30 mx-auto flex h-[76px] w-full shrink-0 max-w-[1264px] items-center justify-between px-5 sm:px-10"
         >
           <a href="#" className="flex items-center gap-2 text-neutral-950">
             <BuzinaMark className="size-[26px] transition-transform duration-500 hover:rotate-90" />
@@ -349,12 +366,12 @@ export default function BuzinaHero() {
             </a>
           </div>
         </motion.header>
-        <div className="relative z-30 mx-auto h-px max-w-[1360px] bg-neutral-100" />
+        <div className="relative z-30 mx-auto h-px w-full max-w-[1360px] shrink-0 bg-neutral-100" />
 
         {/* Copy */}
         <div
           data-copy
-          className="relative z-20 mx-auto max-w-[1200px] px-4 pt-14 text-center sm:pt-[74px]"
+          className="relative z-20 mx-auto w-full max-w-[1200px] px-7 pt-14 sm:px-4 text-center sm:pt-[74px] md:pt-[clamp(24px,5vh,74px)]"
         >
           <Headline />
           <Rise delay={0.55}>
@@ -368,10 +385,18 @@ export default function BuzinaHero() {
         </div>
 
         {/* Desktop / tablet stage */}
-        <div className="relative z-10 mt-[41px] hidden h-[292px] md:block lg:h-[391px] xl:h-[490px] min-[1440px]:h-[550px]">
+        <div
+          ref={stageBox}
+          className="relative z-10 mt-[clamp(16px,4vh,41px)] hidden min-h-0 flex-1 md:block"
+        >
           <div
-            className="absolute top-0 left-1/2 origin-top -translate-x-1/2 scale-[.53] lg:scale-[.71] xl:scale-[.89] min-[1440px]:scale-100"
-            style={{ width: STAGE.w, height: STAGE.h }}
+            className="absolute top-0 left-1/2 origin-top"
+            style={{
+              width: STAGE.w,
+              height: STAGE.h,
+              transform: `translateX(-50%) scale(${stageScale ?? 0.6})`,
+              visibility: stageScale === null ? "hidden" : "visible",
+            }}
           >
             <div
               aria-hidden
@@ -461,7 +486,7 @@ export default function BuzinaHero() {
               <Orb size={320} webgl={isMd === false && !reduce} />
             </Rise>
           </div>
-          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pt-2 pb-6 [scrollbar-width:none]">
+          <div className="flex snap-x snap-mandatory items-start gap-4 overflow-x-auto px-[9vw] pt-2 pb-6 [scrollbar-width:none]">
             {CARDS.map((c, i) => (
               <motion.div
                 key={c.id}

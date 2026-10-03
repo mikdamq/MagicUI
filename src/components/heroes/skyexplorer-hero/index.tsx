@@ -158,7 +158,7 @@ export default function SkyExplorerHero() {
           scrollTrigger: {
             trigger: "[data-hero]",
             start: "top top",
-            end: "+=80%",
+            end: "+=40%",
             scrub: 0.8,
             pin: true,
             onUpdate: (self) => {
@@ -183,7 +183,7 @@ export default function SkyExplorerHero() {
       ref={root}
       className={cn(sans.variable, serif.variable, "min-h-screen bg-white font-[family-name:var(--sx-sans)] antialiased")}
     >
-      <section data-hero className="relative min-h-[880px] overflow-hidden bg-white lg:h-[945px] lg:min-h-0">
+      <section data-hero className="relative min-h-[880px] overflow-clip bg-white lg:h-svh lg:min-h-[640px]">
         {/* ---------- Scene ---------- */}
         <div
           className="absolute inset-3 overflow-hidden rounded-[28px]"
@@ -254,7 +254,7 @@ export default function SkyExplorerHero() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="relative z-30 mx-auto flex max-w-[924px] items-center justify-between px-6 pt-8 lg:pt-[42px]"
+          className="relative z-30 mx-auto flex max-w-[924px] items-center justify-between px-7 pt-9 sm:px-6 lg:pt-[clamp(20px,4.4vh,42px)]"
         >
           <a href="#" className="flex items-baseline text-[22px] leading-none">
             <span className="font-[family-name:var(--sx-serif)] text-[25px] text-[#8a8893] italic">
@@ -288,10 +288,10 @@ export default function SkyExplorerHero() {
         </motion.header>
 
         {/* ---------- Copy + search ---------- */}
-        <div className="relative z-20 mx-auto max-w-[1100px] px-4 pt-24 text-center sm:px-6 lg:pt-[142px]">
+        <div className="relative z-20 mx-auto max-w-[1100px] px-7 pt-24 text-center sm:px-6 lg:pt-[clamp(72px,15vh,142px)]">
           <h1
             data-headline
-            className="font-[family-name:var(--sx-serif)] text-[46px] leading-[0.95] tracking-[-0.01em] italic sm:text-[64px] lg:text-[76px] lg:leading-[0.93]"
+            className="font-[family-name:var(--sx-serif)] text-[46px] leading-[0.95] tracking-[-0.01em] italic sm:text-[64px] lg:text-[clamp(52px,min(5.3vw,10vh),76px)] lg:leading-[0.93]"
           >
             <span className="block text-[#0e0d12]">
               <Word delay={0.15}>Find</Word> <Word delay={0.23}>the</Word>{" "}
@@ -305,7 +305,7 @@ export default function SkyExplorerHero() {
           </h1>
 
           <motion.div
-            className="mt-14 text-left lg:mt-[92px]"
+            className="mt-14 text-left lg:mt-[clamp(28px,9.5vh,92px)]"
             initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 1, delay: 0.95, ease: EASE }}
@@ -317,7 +317,7 @@ export default function SkyExplorerHero() {
         {/* ---------- Partners ---------- */}
         <motion.div
           data-logos
-          className="relative z-20 mt-56 pb-16 lg:absolute lg:inset-x-0 lg:bottom-[66px] lg:mt-0 lg:pb-0"
+          className="relative z-20 mt-56 pb-16 lg:absolute lg:inset-x-0 lg:bottom-[clamp(28px,7vh,66px)] lg:mt-0 lg:pb-0"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1.3, ease: EASE }}

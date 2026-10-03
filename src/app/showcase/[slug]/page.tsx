@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getItem, registry } from "@/registry";
 
@@ -26,15 +25,5 @@ export default async function ShowcasePage({
 
   const { default: Piece } = await item.load();
 
-  return (
-    <>
-      <Link
-        href="/"
-        className="fixed bottom-4 left-4 z-[100] rounded-full border border-white/10 bg-black/50 px-3.5 py-1.5 font-mono text-xs text-white/80 backdrop-blur-md transition-colors hover:text-white"
-      >
-        ← Gallery
-      </Link>
-      <Piece />
-    </>
-  );
+  return <Piece />;
 }
