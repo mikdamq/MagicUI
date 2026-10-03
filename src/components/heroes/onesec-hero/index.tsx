@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowDot, SwapCard, WalletModal } from "./swap-card";
 import { TOKEN_ORDER, type TokenId } from "./tokens";
+import { trackPath } from "./track";
 
 const CoinsCanvas = dynamic(() => import("./coins-canvas"), { ssr: false });
 
@@ -92,6 +93,17 @@ export default function OneSecHero() {
     return () => ro.disconnect();
   }, []);
 
+  // Hero size drives the dashed route (the coin canvas builds the same curve).
+  const hero = useRef<HTMLElement>(null);
+  const [heroSize, setHeroSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = hero.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeroSize({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const card = <SwapCard connected={connected} onConnect={() => setModal(true)} onPick={pulse} />;
 
   return (
@@ -102,11 +114,51 @@ export default function OneSecHero() {
           "radial-gradient(60% 50% at 85% 20%, rgba(120,180,255,.35), transparent 70%), linear-gradient(180deg, #3574e2 0%, #5b86e6 22%, #8d9be8 45%, #b5abed 65%, #dcc3f1 85%, #ecc9f0 100%)",
       }}
     >
-      <section className="relative flex min-h-svh flex-col md:h-svh md:min-h-[640px]">
-        {/* Coins (desktop: right side, full height) */}
+      <style>{`
+        @keyframes os-dash { to { stroke-dashoffset: -480; } }
+        @keyframes os-pulse { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+      `}</style>
+      <section ref={hero} className="relative flex min-h-svh flex-col md:h-svh md:min-h-[640px]">
+        {/* Network route: behind the coins and the card */}
+        {heroSize && (
+          <motion.svg
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 hidden md:block"
+            width={heroSize.w}
+            height={heroSize.h}
+            viewBox={`0 0 ${heroSize.w} ${heroSize.h}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.2, delay: 0.5 }}
+          >
+            <path
+              d={trackPath(heroSize.w, heroSize.h)}
+              fill="none"
+              stroke="#ff3b5f"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeDasharray="12 12"
+              style={reduce ? undefined : { animation: "os-dash 20s linear infinite" }}
+            />
+            {!reduce && (
+              <path
+                d={trackPath(heroSize.w, heroSize.h)}
+                pathLength={1000}
+                fill="none"
+                stroke="#ffd1dc"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeDasharray="22 978"
+                style={{ animation: "os-pulse 7s linear infinite", filter: "drop-shadow(0 0 6px #ff3b5f)" }}
+              />
+            )}
+          </motion.svg>
+        )}
+
+        {/* Coins (desktop: full hero, gliding along the route) */}
         <div
           className={cn(
-            "pointer-events-auto absolute inset-y-0 right-0 hidden w-[58%] transition-opacity duration-700 md:block",
+            "pointer-events-auto absolute inset-0 z-[1] hidden transition-opacity duration-700 md:block",
             coinsReady ? "opacity-100" : "opacity-0",
           )}
         >

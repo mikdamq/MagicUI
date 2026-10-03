@@ -1,11 +1,12 @@
 "use client";
 
 import { Environment, Lightformer } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { EMBOSS_SVG } from "./logos";
+import { buildTrack, LAP } from "./track";
 import type { TokenId } from "./tokens";
 
 /* ------------------------------------------------------------------ */
@@ -104,9 +105,12 @@ export type CoinSpec = {
   id: TokenId;
   face: string;
   edge: string;
+  /** Static position (mobile), or offset from its stack's point on the track. */
   pos: [number, number, number];
   rot: [number, number, number];
   scale: number;
+  /** Which stack on the route this coin rides with (desktop). */
+  stack?: 0 | 1;
 };
 
 const BRAND: Record<TokenId, { face: string; edge: string }> = {
@@ -117,33 +121,43 @@ const BRAND: Record<TokenId, { face: string; edge: string }> = {
   POL: { face: "#7b3fe4", edge: "#6230bf" },
 };
 
-const coin = (id: TokenId, pos: CoinSpec["pos"], rot: CoinSpec["rot"], scale: number): CoinSpec => ({
-  id,
-  ...BRAND[id],
-  pos,
-  rot,
-  scale,
-});
+const coin = (
+  id: TokenId,
+  pos: CoinSpec["pos"],
+  rot: CoinSpec["rot"],
+  scale: number,
+  stack?: 0 | 1,
+): CoinSpec => ({ id, ...BRAND[id], pos, rot, scale, stack });
 
+/** Desktop: two stacks riding the route; positions are offsets from the stack point. */
 export const DESKTOP_COINS: CoinSpec[] = [
-  coin("ETH", [0.25, 2.25, -0.8], [-0.3, -0.62, 0.32], 1.05),
-  coin("ARB", [0.62, 1.62, 0.3], [-0.28, -0.5, 0.18], 1.05),
-  coin("USDT", [0.98, 0.5, 0.9], [-1.18, -0.08, 0.06], 1.18),
-  coin("USDC", [-0.28, -1.9, -1.0], [-0.26, -0.62, 0.08], 1.12),
-  coin("POL", [0.75, -1.38, 0.9], [-0.3, -0.55, 0.12], 1.08),
+  coin("ETH", [-0.37, 0.79, -0.8], [-0.3, -0.62, 0.32], 1.05, 0),
+  coin("ARB", [0, 0.16, 0.3], [-0.28, -0.5, 0.18], 1.05, 0),
+  coin("USDT", [0.36, -0.96, 0.9], [-1.18, -0.08, 0.06], 1.18, 0),
+  coin("USDC", [-0.515, -0.26, -1.0], [-0.26, -0.62, 0.08], 1.12, 1),
+  coin("POL", [0.515, 0.26, 0.9], [-0.3, -0.55, 0.12], 1.08, 1),
 ];
 
 export const MOBILE_COINS: CoinSpec[] = [
-  { ...DESKTOP_COINS[0], pos: [-1.55, 0.95, -0.6], scale: 0.8 },
-  { ...DESKTOP_COINS[1], pos: [-1.05, 0.55, 0.3], scale: 0.8 },
-  { ...DESKTOP_COINS[2], pos: [0.1, -1.05, 0], scale: 0.85 },
-  { ...DESKTOP_COINS[3], pos: [1.0, 0.75, -0.4], scale: 0.82 },
-  { ...DESKTOP_COINS[4], pos: [1.75, 0.3, 0.35], scale: 0.8 },
+  { ...DESKTOP_COINS[0], pos: [-1.55, 0.95, -0.6], scale: 0.8, stack: undefined },
+  { ...DESKTOP_COINS[1], pos: [-1.05, 0.55, 0.3], scale: 0.8, stack: undefined },
+  { ...DESKTOP_COINS[2], pos: [0.1, -1.05, 0], scale: 0.85, stack: undefined },
+  { ...DESKTOP_COINS[3], pos: [1.0, 0.75, -0.4], scale: 0.82, stack: undefined },
+  { ...DESKTOP_COINS[4], pos: [1.75, 0.3, 0.35], scale: 0.8, stack: undefined },
 ];
+
+/** Stacks riding the route are drawn a little smaller so the route reads. */
+const STACK_SCALE = 0.82;
+
+/** Camera: z = 12, fov 30 -> visible world height at the z = 0 plane. */
+const VIEW_H = 2 * 12 * Math.tan((15 * Math.PI) / 180);
 
 const TAU = Math.PI * 2;
 
+type Track = ReturnType<typeof buildTrack> & { width: number; height: number };
+
 type Shared = {
+  track: React.RefObject<Track | null>;
   body: THREE.BufferGeometry;
   rim: THREE.BufferGeometry;
   reeding: THREE.Texture;
@@ -229,13 +243,26 @@ function Coin({
     st.bounce = Math.max(0, st.bounce - dt * 1.6);
 
     if (outer.current) {
-      const float = animate ? Math.sin(t * 0.75 + index * 1.3) * 0.1 : 0;
+      const float = animate ? Math.sin(t * 0.75 + index * 1.3) * 0.06 : 0;
+      // Glide along the route (desktop): stack point in px -> world units.
+      let ax = 0;
+      let ay = 0;
+      const track = shared.track.current;
+      if (spec.stack !== undefined && track) {
+        const travel = animate ? Math.max(0, t - 0.6) / LAP : 0;
+        const u = (track.starts[spec.stack] + travel) % 1;
+        const p = track.curve.getPointAt(u);
+        const ppu = track.height / VIEW_H;
+        ax = (p.x - track.width / 2) / ppu;
+        ay = -(p.y - track.height / 2) / ppu;
+      }
+      const k = spec.stack !== undefined ? STACK_SCALE : 1;
       outer.current.position.set(
-        spec.pos[0],
-        spec.pos[1] + float + (1 - ease) * 1.6 + Math.sin(st.bounce * Math.PI) * 0.35,
+        ax + spec.pos[0] * k,
+        ay + spec.pos[1] * k + float + (1 - ease) * 1.6 + Math.sin(st.bounce * Math.PI) * 0.35,
         spec.pos[2],
       );
-      outer.current.scale.setScalar(spec.scale * Math.max(0.001, ease) * (1 + st.hover * 0.05));
+      outer.current.scale.setScalar(spec.scale * k * Math.max(0.001, ease) * (1 + st.hover * 0.05));
     }
 
     if (tilt.current) {
@@ -304,8 +331,13 @@ function Coins({
   animate: boolean;
   mouse: React.RefObject<{ x: number; y: number }>;
 }) {
+  const size = useThree((s) => s.size);
+  const track = useRef<Track | null>(null);
+  useEffect(() => {
+    track.current = { ...buildTrack(size.width, size.height), width: size.width, height: size.height };
+  }, [size.width, size.height]);
   const shared = useMemo<Shared>(
-    () => ({ body: makeBody(), rim: makeRim(), reeding: makeReeding(), mouse }),
+    () => ({ track, body: makeBody(), rim: makeRim(), reeding: makeReeding(), mouse }),
     [mouse],
   );
   return (
