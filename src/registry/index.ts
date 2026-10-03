@@ -40,6 +40,16 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
  */
 export const registry: ShowcaseItem[] = [
   {
+    slug: "onesec-hero",
+    title: "OneSec",
+    description:
+      "Web3 bridge hero with a working swap card and real-time 3D clay coins you can flick and spin.",
+    category: "hero",
+    tech: ["three", "motion"],
+    createdAt: "2026-10-04",
+    load: () => import("@/components/heroes/onesec-hero"),
+  },
+  {
     slug: "skyexplorer-hero",
     title: "SkyExplorer",
     description:
