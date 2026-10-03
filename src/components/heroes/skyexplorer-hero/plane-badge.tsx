@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useAnimationControls, useReducedMotion } from "motion/react";
+import { useEffect, useRef } from "react";
 
 function Plane({ className }: { className?: string }) {
   return (
@@ -34,8 +35,11 @@ export function PlaneBadge() {
   const controls = useAnimationControls();
   const reduce = useReducedMotion();
 
+  const flying = useRef(false);
+
   const takeOff = async () => {
-    if (reduce) return;
+    if (reduce || flying.current) return;
+    flying.current = true;
     await controls.start({
       x: 70,
       y: -70,
@@ -51,7 +55,16 @@ export function PlaneBadge() {
       opacity: 1,
       transition: { type: "spring", stiffness: 180, damping: 16 },
     });
+    flying.current = false;
   };
+
+  // One flight once the whole hero has settled, to hint that it's interactive.
+  useEffect(() => {
+    if (reduce) return;
+    const id = setTimeout(takeOff, 2600);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduce]);
 
   return (
     <motion.span

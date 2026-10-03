@@ -161,6 +161,7 @@ export default function SkyExplorerHero() {
             end: "+=40%",
             scrub: 0.8,
             pin: true,
+            invalidateOnRefresh: true,
             onUpdate: (self) => {
               rise.current = self.progress;
             },
@@ -169,9 +170,32 @@ export default function SkyExplorerHero() {
         RIDGES.forEach((r) => {
           tl.to(`[data-ridge="${r.id}"]`, { y: r.scroll, ease: "none" }, 0);
         });
-        tl.to("[data-headline]", { y: -70, opacity: 0, filter: "blur(10px)", ease: "none" }, 0);
-        tl.to("[data-nav]", { opacity: 0.4, ease: "none" }, 0);
-        tl.to("[data-logos]", { y: 40, opacity: 0, ease: "none" }, 0);
+        // GSAP only animates wrappers that Motion never touches, with explicit
+        // start values, so scrolling back up always restores the resting state.
+        tl.fromTo("[data-headline]", { y: 0, opacity: 1, filter: "blur(0px)" }, { y: -70, opacity: 0, filter: "blur(10px)", ease: "none" }, 0);
+        tl.fromTo("[data-nav]", { opacity: 1 }, { opacity: 0.4, ease: "none" }, 0);
+        tl.fromTo("[data-logos]", { y: 0, opacity: 1 }, { y: 40, opacity: 0, ease: "none" }, 0);
+        // Bring the search into focus: glide to the middle of the screen and grow.
+        tl.fromTo(
+          "[data-search]",
+          { y: 0, scale: 1 },
+          {
+            y: () => {
+              // Layout offset inside the hero (ignores transforms and pinning).
+              const el = document.querySelector<HTMLElement>("[data-search]");
+              const hero = document.querySelector<HTMLElement>("[data-hero]");
+              if (!el || !hero) return 0;
+              let top = 0;
+              for (let n: HTMLElement | null = el; n && n !== hero; n = n.offsetParent as HTMLElement | null) {
+                top += n.offsetTop;
+              }
+              return window.innerHeight / 2 - (top + el.offsetHeight / 2);
+            },
+            scale: 1.18,
+            ease: "none",
+          },
+          0,
+        );
       });
       return () => mm.revert();
     },
@@ -249,12 +273,12 @@ export default function SkyExplorerHero() {
         </div>
 
         {/* ---------- Header ---------- */}
+        <div data-nav className="relative z-30">
         <motion.header
-          data-nav
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="relative z-30 mx-auto flex max-w-[924px] items-center justify-between px-7 pt-9 sm:px-6 lg:pt-[clamp(20px,4.4vh,42px)]"
+          className="relative mx-auto flex max-w-[924px] items-center justify-between px-7 pt-9 sm:px-6 lg:pt-[clamp(20px,4.4vh,42px)]"
         >
           <a href="#" className="flex items-baseline text-[22px] leading-none">
             <span className="font-[family-name:var(--sx-serif)] text-[25px] text-[#8a8893] italic">
@@ -286,6 +310,7 @@ export default function SkyExplorerHero() {
             Log in
           </a>
         </motion.header>
+        </div>
 
         {/* ---------- Copy + search ---------- */}
         <div className="relative z-20 mx-auto max-w-[1100px] px-7 pt-24 text-center sm:px-6 lg:pt-[clamp(72px,15vh,142px)]">
@@ -304,26 +329,31 @@ export default function SkyExplorerHero() {
             </span>
           </h1>
 
-          <motion.div
-            className="mt-14 text-left lg:mt-[clamp(28px,9.5vh,92px)]"
-            initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 1, delay: 0.95, ease: EASE }}
-          >
-            <SearchWidget />
-          </motion.div>
+          <div data-search className="relative z-10 mt-14 lg:mt-[clamp(28px,9.5vh,92px)]">
+            <motion.div
+              className="text-left"
+              initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 1, delay: 0.95, ease: EASE }}
+            >
+              <SearchWidget />
+            </motion.div>
+          </div>
         </div>
 
         {/* ---------- Partners ---------- */}
-        <motion.div
+        <div
           data-logos
           className="relative z-20 mt-56 pb-16 lg:absolute lg:inset-x-0 lg:bottom-[clamp(28px,7vh,66px)] lg:mt-0 lg:pb-0"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.3, ease: EASE }}
         >
-          <Airlines />
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 1.3, ease: EASE }}
+          >
+            <Airlines />
+          </motion.div>
+        </div>
       </section>
     </div>
   );

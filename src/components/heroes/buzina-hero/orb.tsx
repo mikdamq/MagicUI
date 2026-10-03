@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { motion, useMotionValue, useSpring } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { BuzinaMark } from "./logo";
 
@@ -23,11 +24,42 @@ export function Orb({
 }) {
   const [ready, setReady] = useState(false);
   const sphere = size * 0.8;
+  const box = useRef<HTMLDivElement>(null);
+
+  // Magnetic pull: the whole orb (halo, orbit, mark) drifts toward the cursor.
+  const tx = useMotionValue(0);
+  const ty = useMotionValue(0);
+  const x = useSpring(tx, { stiffness: 110, damping: 9, mass: 0.8 });
+  const y = useSpring(ty, { stiffness: 110, damping: 9, mass: 0.8 });
+
+  useEffect(() => {
+    if (!webgl) return;
+    const onMove = (e: PointerEvent) => {
+      const r = box.current?.getBoundingClientRect();
+      if (!r) return;
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      const k = 0.07;
+      tx.set(Math.max(-34, Math.min(34, dx * k)));
+      ty.set(Math.max(-26, Math.min(26, dy * k)));
+    };
+    const onLeave = () => {
+      tx.set(0);
+      ty.set(0);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+    };
+  }, [webgl, tx, ty]);
 
   return (
-    <div
+    <motion.div
+      ref={box}
       className={cn("relative grid place-items-center", className)}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, x, y }}
     >
       {/* Ambient halo */}
       <div
@@ -99,6 +131,6 @@ export function Orb({
         className="pointer-events-none absolute text-white/35"
         style={{ width: sphere * 0.29, height: sphere * 0.29 }}
       />
-    </div>
+    </motion.div>
   );
 }

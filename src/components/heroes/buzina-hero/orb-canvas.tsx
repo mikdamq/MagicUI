@@ -54,16 +54,24 @@ float snoise(vec3 v){
 const vertexShader = /* glsl */ `
 uniform float uTime;
 uniform float uEnergy;
+uniform vec2 uPull;
+uniform float uPullAmt;
+uniform float uWobble;
 varying vec3 vNormal;
 varying vec3 vView;
 varying vec3 vPos;
 ${NOISE}
 void main(){
   vec3 p = position;
+  vec3 nView = normalize(normalMatrix * normal);
+  // Liquid bulge reaching toward the cursor.
+  vec3 pullDir = normalize(vec3(uPull, 0.85));
+  float bulge = pow(max(dot(nView, pullDir), 0.0), 3.0) * uPullAmt * 0.11;
   float n = snoise(normal * 1.3 + vec3(uTime * 0.22));
-  p += normal * n * (0.012 + uEnergy * 0.022);
+  float wobble = snoise(normal * 1.2 + vec3(uTime * 1.4)) * uWobble;
+  p += normal * (n * (0.012 + uEnergy * 0.012) + bulge + wobble * 0.045);
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
-  vNormal = normalize(normalMatrix * normal);
+  vNormal = nView;
   vView = normalize(-mv.xyz);
   vPos = position;
   gl_Position = projectionMatrix * mv;
@@ -72,7 +80,8 @@ void main(){
 
 const fragmentShader = /* glsl */ `
 uniform float uTime;
-uniform vec2 uMouse;
+uniform vec2 uPull;
+uniform float uPullAmt;
 varying vec3 vNormal;
 varying vec3 vView;
 varying vec3 vPos;
@@ -82,12 +91,13 @@ void main(){
   float facing = max(dot(n, vView), 0.0);
   float fres = 1.0 - facing;
 
-  // Gradient axis: sky-blue top-left -> pink bottom-right, nudged by the cursor.
-  vec2 dir = normalize(vec2(-1.0, 1.05) + uMouse * 0.7);
+  // Gradient axis swings toward the cursor; colours swirl after it.
+  vec2 dir = normalize(vec2(-1.0, 1.05) + uPull * 1.3);
   float g = dot(n.xy, dir) * 0.55 + 0.5;
-  float flow = snoise(vPos * 1.6 + vec3(0.0, uTime * 0.16, uTime * 0.11));
-  float flow2 = snoise(vPos * 3.2 - vec3(uTime * 0.09));
-  g = clamp(g + flow * 0.13 + flow2 * 0.04, 0.0, 1.0);
+  vec3 swirl = vec3(uPull * 0.9, 0.0);
+  float flow = snoise(vPos * 1.6 + swirl + vec3(0.0, uTime * 0.16, uTime * 0.11));
+  float flow2 = snoise(vPos * 3.2 - swirl - vec3(uTime * 0.09));
+  g = clamp(g + flow * 0.14 + flow2 * 0.05, 0.0, 1.0);
 
   vec3 pink = vec3(0.98, 0.76, 0.94);
   vec3 lav  = vec3(0.82, 0.67, 0.97);
@@ -97,10 +107,10 @@ void main(){
   col = mix(col, peri, smoothstep(0.38, 0.68, g));
   col = mix(col, blue, smoothstep(0.62, 0.98, g));
 
-  // Milky core and a soft highlight that follows the pointer.
+  // Milky core and a glossy highlight that tracks the cursor.
   col = mix(col, vec3(0.95, 0.89, 1.0), pow(facing, 4.0) * 0.22);
-  vec3 L = normalize(vec3(-0.45 + uMouse.x * 0.9, 0.55 + uMouse.y * 0.7, 1.0));
-  col += pow(max(dot(n, L), 0.0), 14.0) * 0.16;
+  vec3 L = normalize(vec3(-0.25 + uPull.x * 0.9, 0.35 + uPull.y * 0.8, 1.0));
+  col += pow(max(dot(n, L), 0.0), 10.0) * (0.14 + uPullAmt * 0.12);
 
   // Bright, hazy rim that dissolves into the white page.
   col = mix(col, vec3(0.97, 0.94, 1.0), smoothstep(0.5, 1.0, fres) * 0.6);
@@ -109,7 +119,8 @@ void main(){
 }
 `;
 
-type Pointer = { x: number; y: number };
+/** Last pointer position in client pixels (null until the pointer moves). */
+type Pointer = { x: number; y: number; active: boolean };
 
 function Sphere({ pointer }: { pointer: React.RefObject<Pointer> }) {
   const mesh = useRef<THREE.Mesh>(null);
@@ -117,29 +128,61 @@ function Sphere({ pointer }: { pointer: React.RefObject<Pointer> }) {
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uMouse: { value: new THREE.Vector2() },
       uEnergy: { value: 0 },
+      uPull: { value: new THREE.Vector2() },
+      uPullAmt: { value: 0 },
+      uWobble: { value: 0 },
     }),
     [],
   );
+  // Spring state for the jelly lag between cursor and surface.
+  const spring = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
 
   useFrame((state, delta) => {
     const u = material.current?.uniforms;
     if (!u) return;
+    const dt = Math.min(delta, 1 / 30);
+
+    // Cursor position relative to the sphere, in sphere radii.
+    const rect = state.gl.domElement.getBoundingClientRect();
+    const radius = rect.height * 0.4 || 1;
     const p = pointer.current;
-    const m = u.uMouse.value as THREE.Vector2;
-    const prevX = m.x;
-    const prevY = m.y;
-    m.x += (p.x - m.x) * Math.min(1, delta * 3);
-    m.y += (p.y - m.y) * Math.min(1, delta * 3);
-    // Pointer speed briefly energises the surface.
-    const speed = Math.hypot(m.x - prevX, m.y - prevY) / Math.max(delta, 1e-3);
-    u.uEnergy.value += (Math.min(speed * 0.5, 1) - u.uEnergy.value) * 0.04;
+    let tx = 0;
+    let ty = 0;
+    let amt = 0;
+    if (p.active) {
+      const lx = (p.x - (rect.left + rect.width / 2)) / radius;
+      const ly = -(p.y - (rect.top + rect.height / 2)) / radius;
+      const dist = Math.hypot(lx, ly);
+      const reach = Math.min(dist, 1.15) / Math.max(dist, 1e-3);
+      tx = lx * reach;
+      ty = ly * reach;
+      // Strong when close, still noticeable across the hero.
+      amt = Math.max(0.35, 1.2 - dist * 0.2);
+    }
+
+    // Under-damped spring: overshoots, wobbles, then settles.
+    const sp = spring.current;
+    sp.vx += (tx - sp.x) * 90 * dt;
+    sp.vy += (ty - sp.y) * 90 * dt;
+    sp.vx *= Math.pow(0.02, dt);
+    sp.vy *= Math.pow(0.02, dt);
+    sp.x += sp.vx * dt;
+    sp.y += sp.vy * dt;
+
+    (u.uPull.value as THREE.Vector2).set(sp.x, sp.y);
+    u.uPullAmt.value += (amt - u.uPullAmt.value) * Math.min(1, dt * 4);
+    const speed = Math.hypot(sp.vx, sp.vy);
+    u.uWobble.value += (Math.min(speed * 0.12, 0.5) - u.uWobble.value) * Math.min(1, dt * 6);
+    u.uEnergy.value += (Math.min(speed * 0.3, 1) - u.uEnergy.value) * Math.min(1, dt * 3);
     u.uTime.value = state.clock.elapsedTime;
 
     if (mesh.current) {
-      mesh.current.rotation.y += delta * 0.12;
-      mesh.current.rotation.x = m.y * 0.25;
+      // Magnetic drift and tilt toward the cursor.
+      mesh.current.position.x = sp.x * 0.07;
+      mesh.current.position.y = sp.y * 0.07;
+      mesh.current.rotation.y += dt * 0.12 + sp.vx * dt * 0.4;
+      mesh.current.rotation.x = -sp.y * 0.35;
       const s = 1 + Math.sin(state.clock.elapsedTime * 0.9) * 0.012;
       mesh.current.scale.setScalar(s);
     }
@@ -162,15 +205,23 @@ function Sphere({ pointer }: { pointer: React.RefObject<Pointer> }) {
 }
 
 export default function OrbCanvas({ onReady }: { onReady?: () => void }) {
-  const pointer = useRef<Pointer>({ x: 0, y: 0 });
+  const pointer = useRef<Pointer>({ x: 0, y: 0, active: false });
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      pointer.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-      pointer.current.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      pointer.current.x = e.clientX;
+      pointer.current.y = e.clientY;
+      pointer.current.active = true;
+    };
+    const onLeave = () => {
+      pointer.current.active = false;
     };
     window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+    };
   }, []);
 
   return (
