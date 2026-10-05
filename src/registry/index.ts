@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-export type ShowcaseCategory = "hero" | "section" | "component" | "landing-page" | "ecommerce";
+export type ShowcaseCategory = "hero" | "section" | "component" | "landing-page" | "ecommerce" | "dashboard";
 
 export type ShowcaseTech = "motion" | "gsap" | "three" | "css" | "canvas";
 
@@ -23,6 +23,7 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
   component: "Components",
   "landing-page": "Landing Pages",
   ecommerce: "E-commerce",
+  dashboard: "Dashboards",
 };
 
 /**
@@ -40,6 +41,16 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
  * },
  */
 export const registry: ShowcaseItem[] = [
+  {
+    slug: "workspace-dashboard",
+    title: "Workspace",
+    description:
+      "Project workspace with live KPI cards and a pannable diagram whose nodes you can drag and re-layout.",
+    category: "dashboard",
+    tech: ["motion", "css"],
+    createdAt: "2026-10-05",
+    load: () => import("@/components/dashboards/workspace"),
+  },
   {
     slug: "molimao-rail",
     title: "Molimao",
