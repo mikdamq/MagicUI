@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-export type ShowcaseCategory = "hero" | "section" | "component" | "landing-page";
+export type ShowcaseCategory = "hero" | "section" | "component" | "landing-page" | "ecommerce";
 
 export type ShowcaseTech = "motion" | "gsap" | "three" | "css" | "canvas";
 
@@ -22,6 +22,7 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
   section: "Website Sections",
   component: "Components",
   "landing-page": "Landing Pages",
+  ecommerce: "E-commerce",
 };
 
 /**
@@ -39,6 +40,16 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
  * },
  */
 export const registry: ShowcaseItem[] = [
+  {
+    slug: "molimao-rail",
+    title: "Molimao",
+    description:
+      "Virtual clothing rail: garments zoom off the rack, turn on hover and open into a product drawer.",
+    category: "ecommerce",
+    tech: ["motion", "css"],
+    createdAt: "2026-10-05",
+    load: () => import("@/components/ecommerce/molimao-rail"),
+  },
   {
     slug: "github-discussions-hero",
     title: "GitHub Discussions",
