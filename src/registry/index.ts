@@ -42,6 +42,16 @@ export const CATEGORY_LABELS: Record<ShowcaseCategory, string> = {
  */
 export const registry: ShowcaseItem[] = [
   {
+    slug: "canopy-farm",
+    title: "Canopy",
+    description:
+      "3D vertical farm: zoom into floors, tune each floor's LED recipe and follow every crop from seed to delivery van, day and night.",
+    category: "dashboard",
+    tech: ["three", "motion"],
+    createdAt: "2026-10-06",
+    load: () => import("@/components/dashboards/canopy-farm"),
+  },
+  {
     slug: "workspace-dashboard",
     title: "Workspace",
     description:
